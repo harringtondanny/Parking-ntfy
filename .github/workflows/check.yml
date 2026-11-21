@@ -19,5 +19,8 @@ jobs:
         run: |
           git config user.name "parking-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add seen.json
+          # weekly heartbeat commit so GitHub never pauses the schedule for inactivity
+          WEEK=$(date -u +%G-W%V)
+          [ "$(cat heartbeat.txt 2>/dev/null)" = "$WEEK" ] || echo "$WEEK" > heartbeat.txt
+          git add seen.json heartbeat.txt
           git diff --cached --quiet || (git commit -m "update seen" && git push)
