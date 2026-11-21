@@ -4,10 +4,10 @@ import json, os, re, sys, urllib.request
 from pathlib import Path
 
 URL = "https://ikwilhuren.nu/parkeerplaatsen/"
-MATCH = os.environ.get("MATCH", "heathrowstraat").lower()
+MATCH = (os.environ.get("MATCH") or "heathrowstraat").lower()
 TOPIC = os.environ.get("NTFY_TOPIC", "")
 STATE = Path(__file__).with_name("seen.json")
-LINK_RE = re.compile(r'https://ikwilhuren\.nu/object/[^"\s)<>\']+')
+LINK_RE = re.compile(r'(?:https://(?:www\.)?ikwilhuren\.nu)?(/object/[^"\s)<>\'#?]+)')
 
 def fetch(url):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (parking-ntfy)"})
@@ -15,7 +15,7 @@ def fetch(url):
         return r.read().decode("utf-8", "replace")
 
 def listing_links(html):
-    return set(LINK_RE.findall(html))
+    return {"https://ikwilhuren.nu" + p for p in LINK_RE.findall(html)}
 
 def matches(links, needle=MATCH):
     return sorted(l for l in links if needle in l.lower())
@@ -33,6 +33,7 @@ def main():
     html = fetch(URL)
     links = listing_links(html)
     if len(links) < 50:  # page layout probably changed; fail loudly
+        print(f"HTML length: {len(html)}; head: {html[:400]!r}")
         sys.exit(f"Only {len(links)} listings parsed, aborting")
     seen = set(json.loads(STATE.read_text())) if STATE.exists() else set()
     new = [l for l in matches(links) if l not in seen]
